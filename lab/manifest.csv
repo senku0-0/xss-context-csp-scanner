@@ -1,0 +1,50 @@
+id,context,defense,csp,template,actually_runs,trigger_payload,code_vulnerable_assumed
+case001,c01_html_body,none,none,<p>You searched for: {{INPUT}}</p>,True,<script>window.__xss_fired=1;/*XSS3f38cb01*/</script>,True
+case002,c01_html_body,none,script-src 'self',<p>You searched for: {{INPUT}}</p>,False,,True
+case003,c01_html_body,none,script-src 'none',<p>You searched for: {{INPUT}}</p>,False,,True
+case004,c01_html_body,none,script-src 'unsafe-inline',<p>You searched for: {{INPUT}}</p>,True,<script>window.__xss_fired=1;/*XSS319ee50e*/</script>,True
+case005,c01_html_body,html_escape,none,<p>You searched for: {{INPUT}}</p>,False,,False
+case006,c01_html_body,attr_escape,none,<p>You searched for: {{INPUT}}</p>,False,,False
+case007,c01_html_body,js_escape,none,<p>You searched for: {{INPUT}}</p>,True,<script>window.__xss_fired=1;/*XSSbcc182e5*/</script>,False
+case008,c02_attr_double,none,none,"<input value=""{{INPUT}}"">",True,"""><script>window.__xss_fired=1;/*XSSf36e6e85*/</script>",True
+case009,c02_attr_double,none,script-src 'self',"<input value=""{{INPUT}}"">",False,,True
+case010,c02_attr_double,none,script-src 'none',"<input value=""{{INPUT}}"">",False,,True
+case011,c02_attr_double,none,script-src 'unsafe-inline',"<input value=""{{INPUT}}"">",True,"""><script>window.__xss_fired=1;/*XSSc20632ce*/</script>",True
+case012,c02_attr_double,html_escape,none,"<input value=""{{INPUT}}"">",False,,False
+case013,c02_attr_double,attr_escape,none,"<input value=""{{INPUT}}"">",False,,False
+case014,c02_attr_double,js_escape,none,"<input value=""{{INPUT}}"">",True,"""><script>window.__xss_fired=1;/*XSS0a968baf*/</script>",False
+case015,c03_attr_single,none,none,<input value='{{INPUT}}'>,True,'><script>window.__xss_fired=1;/*XSS621d69a2*/</script>,True
+case016,c03_attr_single,none,script-src 'self',<input value='{{INPUT}}'>,False,,True
+case017,c03_attr_single,none,script-src 'none',<input value='{{INPUT}}'>,False,,True
+case018,c03_attr_single,none,script-src 'unsafe-inline',<input value='{{INPUT}}'>,True,'><script>window.__xss_fired=1;/*XSSabaa60a3*/</script>,True
+case019,c03_attr_single,html_escape,none,<input value='{{INPUT}}'>,False,,False
+case020,c03_attr_single,attr_escape,none,<input value='{{INPUT}}'>,False,,False
+case021,c03_attr_single,js_escape,none,<input value='{{INPUT}}'>,True,'><script>window.__xss_fired=1;/*XSS7ff32dfa*/</script>,False
+case022,c04_script_string,none,none,<script>var x = '{{INPUT}}';</script>,False,,True
+case023,c04_script_string,none,script-src 'self',<script>var x = '{{INPUT}}';</script>,False,,True
+case024,c04_script_string,none,script-src 'none',<script>var x = '{{INPUT}}';</script>,False,,True
+case025,c04_script_string,none,script-src 'unsafe-inline',<script>var x = '{{INPUT}}';</script>,False,,True
+case026,c04_script_string,html_escape,none,<script>var x = '{{INPUT}}';</script>,False,,False
+case027,c04_script_string,attr_escape,none,<script>var x = '{{INPUT}}';</script>,False,,False
+case028,c04_script_string,js_escape,none,<script>var x = '{{INPUT}}';</script>,False,,False
+case029,c05_script_body,none,none,<script>{{INPUT}}</script>,False,,True
+case030,c05_script_body,none,script-src 'self',<script>{{INPUT}}</script>,False,,True
+case031,c05_script_body,none,script-src 'none',<script>{{INPUT}}</script>,False,,True
+case032,c05_script_body,none,script-src 'unsafe-inline',<script>{{INPUT}}</script>,False,,True
+case033,c05_script_body,html_escape,none,<script>{{INPUT}}</script>,False,,False
+case034,c05_script_body,attr_escape,none,<script>{{INPUT}}</script>,False,,False
+case035,c05_script_body,js_escape,none,<script>{{INPUT}}</script>,False,,False
+case036,c06_comment,none,none,<!-- {{INPUT}} -->,True,--><script>window.__xss_fired=1;/*XSSfb0be6ab*/</script>,True
+case037,c06_comment,none,script-src 'self',<!-- {{INPUT}} -->,False,,True
+case038,c06_comment,none,script-src 'none',<!-- {{INPUT}} -->,False,,True
+case039,c06_comment,none,script-src 'unsafe-inline',<!-- {{INPUT}} -->,True,--><script>window.__xss_fired=1;/*XSSab9cfcca*/</script>,True
+case040,c06_comment,html_escape,none,<!-- {{INPUT}} -->,False,,False
+case041,c06_comment,attr_escape,none,<!-- {{INPUT}} -->,False,,False
+case042,c06_comment,js_escape,none,<!-- {{INPUT}} -->,True,--><script>window.__xss_fired=1;/*XSSe8c18cd2*/</script>,False
+case043,c07_js_url,none,none,"<a href=""javascript:{{INPUT}}"">click</a>",True,"""><script>window.__xss_fired=1;/*XSS0606f02f*/</script>",True
+case044,c07_js_url,none,script-src 'self',"<a href=""javascript:{{INPUT}}"">click</a>",False,,True
+case045,c07_js_url,none,script-src 'none',"<a href=""javascript:{{INPUT}}"">click</a>",False,,True
+case046,c07_js_url,none,script-src 'unsafe-inline',"<a href=""javascript:{{INPUT}}"">click</a>",True,"""><script>window.__xss_fired=1;/*XSS4d3ba5fb*/</script>",True
+case047,c07_js_url,html_escape,none,"<a href=""javascript:{{INPUT}}"">click</a>",False,,False
+case048,c07_js_url,attr_escape,none,"<a href=""javascript:{{INPUT}}"">click</a>",False,,False
+case049,c07_js_url,js_escape,none,"<a href=""javascript:{{INPUT}}"">click</a>",True,"""><script>window.__xss_fired=1;/*XSS36d28a30*/</script>",False

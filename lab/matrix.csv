@@ -1,0 +1,50 @@
+id,context,defense,csp,template
+case001,c01_html_body,none,none,<p>You searched for: {{INPUT}}</p>
+case002,c01_html_body,none,script-src 'self',<p>You searched for: {{INPUT}}</p>
+case003,c01_html_body,none,script-src 'none',<p>You searched for: {{INPUT}}</p>
+case004,c01_html_body,none,script-src 'unsafe-inline',<p>You searched for: {{INPUT}}</p>
+case005,c01_html_body,html_escape,none,<p>You searched for: {{INPUT}}</p>
+case006,c01_html_body,attr_escape,none,<p>You searched for: {{INPUT}}</p>
+case007,c01_html_body,js_escape,none,<p>You searched for: {{INPUT}}</p>
+case008,c02_attr_double,none,none,"<input value=""{{INPUT}}"">"
+case009,c02_attr_double,none,script-src 'self',"<input value=""{{INPUT}}"">"
+case010,c02_attr_double,none,script-src 'none',"<input value=""{{INPUT}}"">"
+case011,c02_attr_double,none,script-src 'unsafe-inline',"<input value=""{{INPUT}}"">"
+case012,c02_attr_double,html_escape,none,"<input value=""{{INPUT}}"">"
+case013,c02_attr_double,attr_escape,none,"<input value=""{{INPUT}}"">"
+case014,c02_attr_double,js_escape,none,"<input value=""{{INPUT}}"">"
+case015,c03_attr_single,none,none,<input value='{{INPUT}}'>
+case016,c03_attr_single,none,script-src 'self',<input value='{{INPUT}}'>
+case017,c03_attr_single,none,script-src 'none',<input value='{{INPUT}}'>
+case018,c03_attr_single,none,script-src 'unsafe-inline',<input value='{{INPUT}}'>
+case019,c03_attr_single,html_escape,none,<input value='{{INPUT}}'>
+case020,c03_attr_single,attr_escape,none,<input value='{{INPUT}}'>
+case021,c03_attr_single,js_escape,none,<input value='{{INPUT}}'>
+case022,c04_script_string,none,none,<script>var x = '{{INPUT}}';</script>
+case023,c04_script_string,none,script-src 'self',<script>var x = '{{INPUT}}';</script>
+case024,c04_script_string,none,script-src 'none',<script>var x = '{{INPUT}}';</script>
+case025,c04_script_string,none,script-src 'unsafe-inline',<script>var x = '{{INPUT}}';</script>
+case026,c04_script_string,html_escape,none,<script>var x = '{{INPUT}}';</script>
+case027,c04_script_string,attr_escape,none,<script>var x = '{{INPUT}}';</script>
+case028,c04_script_string,js_escape,none,<script>var x = '{{INPUT}}';</script>
+case029,c05_script_body,none,none,<script>{{INPUT}}</script>
+case030,c05_script_body,none,script-src 'self',<script>{{INPUT}}</script>
+case031,c05_script_body,none,script-src 'none',<script>{{INPUT}}</script>
+case032,c05_script_body,none,script-src 'unsafe-inline',<script>{{INPUT}}</script>
+case033,c05_script_body,html_escape,none,<script>{{INPUT}}</script>
+case034,c05_script_body,attr_escape,none,<script>{{INPUT}}</script>
+case035,c05_script_body,js_escape,none,<script>{{INPUT}}</script>
+case036,c06_comment,none,none,<!-- {{INPUT}} -->
+case037,c06_comment,none,script-src 'self',<!-- {{INPUT}} -->
+case038,c06_comment,none,script-src 'none',<!-- {{INPUT}} -->
+case039,c06_comment,none,script-src 'unsafe-inline',<!-- {{INPUT}} -->
+case040,c06_comment,html_escape,none,<!-- {{INPUT}} -->
+case041,c06_comment,attr_escape,none,<!-- {{INPUT}} -->
+case042,c06_comment,js_escape,none,<!-- {{INPUT}} -->
+case043,c07_js_url,none,none,"<a href=""javascript:{{INPUT}}"">click</a>"
+case044,c07_js_url,none,script-src 'self',"<a href=""javascript:{{INPUT}}"">click</a>"
+case045,c07_js_url,none,script-src 'none',"<a href=""javascript:{{INPUT}}"">click</a>"
+case046,c07_js_url,none,script-src 'unsafe-inline',"<a href=""javascript:{{INPUT}}"">click</a>"
+case047,c07_js_url,html_escape,none,"<a href=""javascript:{{INPUT}}"">click</a>"
+case048,c07_js_url,attr_escape,none,"<a href=""javascript:{{INPUT}}"">click</a>"
+case049,c07_js_url,js_escape,none,"<a href=""javascript:{{INPUT}}"">click</a>"
