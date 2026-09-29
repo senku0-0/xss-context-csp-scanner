@@ -1,0 +1,17 @@
+# Python
+.venv/
+.env/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Playwright
+test-results/
+
+# Captures database (regenerable via scanner/run_capture.py)
+captures.db
