@@ -17,12 +17,12 @@ check contributes to accuracy.
 
 - [Problem Statement](#problem-statement)
 - [Research Questions](#research-questions)
-- [The Three Rules](#the-three-rules)
+- [The Four Rules](#the-four-rules)
 - [Architecture](#architecture)
 - [Directory & File Reference](#directory--file-reference)
 - [Build Phases](#build-phases)
 - [How to Run](#how-to-run)
-- [Results So Far](#results-so-far)
+- [Results](#results)
 - [Technology Stack](#technology-stack)
 - [Known Limitations](#known-limitations)
 - [References](#references)
@@ -56,7 +56,7 @@ that would not actually run in a browser — without hiding ones that would?
 
 ---
 
-## The Three Rules
+## The Four Rules
 
 All rules operate on the **same captured data** (raw HTTP responses saved to disk).
 They differ only in their decision logic.
@@ -65,7 +65,7 @@ They differ only in their decision logic.
 |---|---|---|
 | **A0** | Token reappears | Flag if the unique token appears anywhere in the body. Naive baseline. |
 | **A1** | Payload verbatim | Flag if the **full payload** appears verbatim. Stricter than A0. |
-| **B** | Landing spot | Parse HTML like a browser. Flag only if the token/payload landed **inside `<script>` code**, an **`on*` handler**, or a **`javascript:` URL** — and only if the payload wasn't HTML-entity-encoded. |
+| **B** | Landing spot | Parse HTML like a browser. Flag only if the marker landed **inside `<script>` code** (not inside a JS string, not after a raw `<`), an **`on*` handler**, or a **`javascript:` URL** — and only if the payload wasn't HTML-entity-encoded. |
 | **C** | CSP check | Run B first. If B flags, read the CSP header. If the policy would block that kind of inline execution, mark the finding **MITIGATED** instead of exploitable. |
 
 **Key invariant (unit-tested):** Rule C only *downgrades* Rule B's findings.
@@ -84,7 +84,7 @@ It never introduces new findings.
                     ▼
       ┌──────────────────────────────┐
       │  scanner/run_capture.py      │   Crawls / requests each case with
-      │  + scanner/inject.py         │   7 different payloads. Saves raw
+      │  + scanner/inject.py         │   6 different payloads. Saves raw
       │  + scanner/capture.py        │   status, headers, body → captures.db
       └──────────┬───────────────────┘
                  │
@@ -125,7 +125,7 @@ scanner loop. This keeps the tool explainable and fast.
 | `lab/matrix.csv` | The generated matrix. One row per test case: `id, context, defense, csp, template`. |
 | `lab/app.py` | Flask server. Routes: `/` (homepage listing all cases) and `/page/<case_id>` (serves the case HTML with the correct context, defense, and CSP header). |
 | `lab/run_oracle.py` | Runs the browser oracle against every case. Tries every payload; records the first payload that actually executes. |
-| `lab/manifest.csv` | **The ground truth.** Output of `run_oracle.py`: for each case, `actually_runs` (true/false) and `trigger_payload`. |
+| `lab/manifest.csv` | **The ground truth.** Output of `run_oracle.py`: for each case, `actually_runs` (true/false), `trigger_payload`, and `code_vulnerable_assumed`. |
 
 **Contexts** (where the input lands):
 `html_body`, `attr_double`, `attr_single`, `script_string`, `script_body`,
@@ -155,8 +155,8 @@ scanner loop. This keeps the tool explainable and fast.
 | `scanner/rules/base.py` | Defines the `Rule` interface and `Verdict` dataclass. Every rule implements `evaluate(capture_row) -> Verdict`. |
 | `scanner/rules/a0.py` | **Rule A0** — flag if the token appears anywhere in the body. Naive baseline. |
 | `scanner/rules/a1.py` | **Rule A1** — flag if the full payload appears verbatim. |
-| `scanner/rules/b_context.py` | **Rule B** — parse HTML with `html5lib`. Flag only if the token landed in executable `<script>` code, an `on*` attribute, or a `javascript:` URL. Rejects entity-encoded payloads. Uses a small JS lexer to skip tokens inside JS strings. |
-| `scanner/rules/c_csp.py` | **Rule C** — run Rule B first, then read the CSP. If the effective `script-src` / `default-src` policy would block inline execution, downgrade to `MITIGATED`. |
+| `scanner/rules/b_context.py` | **Rule B** — the landing-spot checker. Scans the **raw HTML** for `<script>` blocks (not BeautifulSoup's parse tree, which hides nested `<script>` tags). Rejects payloads that were HTML-entity-encoded, that sit inside a JS string, or that appear after a raw `<` (which breaks the JS). Also checks `on*` attributes and `javascript:` URLs. |
+| `scanner/rules/c_csp.py` | **Rule C** — runs Rule B first, then reads the enforced CSP header. If the effective `script-src` / `default-src` policy would block inline execution, downgrades to `MITIGATED`. |
 
 ### `eval/` — scoring and diagnostics
 
@@ -164,6 +164,8 @@ scanner loop. This keeps the tool explainable and fast.
 |---|---|
 | `eval/run_eval.py` | Reads `lab/manifest.csv` (ground truth) and `captures.db`. Runs each rule, **aggregates verdicts per case** (a case counts as flagged if *any* of its payloads triggers the rule), and prints precision / recall / F1. |
 | `eval/diagnose_b.py` | Debug helper. Prints per-case verdicts for Rules A1 and B side-by-side, plus the raw bodies of cases where B is wrong and A1 is right. |
+| `eval/diagnose_c.py` | Lists Rule C's false positives and false negatives with reason strings. |
+| `eval/repro_case035.py` | Minimal reproducer for a specific edge case (nested `<script>` with a stray backslash). Useful for understanding the JS-string heuristic. |
 | `eval/__init__.py` | Package marker. |
 
 ### Root
@@ -173,6 +175,7 @@ scanner loop. This keeps the tool explainable and fast.
 | `requirements.txt` | Python dependencies. |
 | `.gitignore` | Excludes `.venv/`, `__pycache__/`, `captures.db`. |
 | `README.md` | This file. |
+| `LICENSE` | MIT License. |
 | `captures.db` | **Generated.** SQLite database holding every captured HTTP response. Regenerable via `python scanner/run_capture.py`. |
 
 ---
@@ -203,20 +206,20 @@ unit that can be tested before moving on.
 - **What it does:** Implements the two naive baselines and the scoring harness.
 - **Done when:** `python eval/run_eval.py` prints a precision/recall table for A0 and A1.
 
-### ⚠️ Phase 4 — Rule B (landing-spot check)
-- **Files:** `scanner/rules/b_context.py`, `eval/diagnose_b.py`.
-- **What it does:** Parses the response with `html5lib`, uses a small JS lexer to determine whether the token landed in executable code, an `on*` handler, or a `javascript:` URL.
-- **Status:** Functionally working. B's precision (~0.42) is currently tied with A1's — B's improvement will come from teaming up with Rule C.
+### ✅ Phase 4 — Rule B (landing-spot check)
+- **Files:** `scanner/rules/b_context.py`, `eval/diagnose_b.py`, `eval/repro_case035.py`.
+- **What it does:** Scans the raw HTML for `<script>` blocks, rejects entity-encoded payloads, payloads inside JS strings, payloads after a raw `<`, and payloads with a stray backslash outside any string. Also checks `on*` handlers and `javascript:` URLs.
+- **Status:** Complete. Precision 0.60, Recall 1.00 on the lab.
 
 ### ❌ Phase 5 — OWASP Benchmark integration (not started)
 - Point the capture engine at the OWASP Benchmark (`https://localhost:8443/benchmark/`).
 - Handle cookie/header-based parameters that the Benchmark uses.
 - Score against the Benchmark's own `expectedresults-1.2.csv`.
 
-### 🟡 Phase 6 — Rule C (CSP check) (code written)
-- **Files:** `scanner/rules/c_csp.py`.
+### ✅ Phase 6 — Rule C (CSP check)
+- **Files:** `scanner/rules/c_csp.py`, `eval/diagnose_c.py`.
 - **What it does:** Reads the enforced CSP header. If the effective script policy blocks inline execution, downgrades the finding to `MITIGATED` (never dismisses it).
-- **Invariant:** Rule C never *adds* findings — it can only remove them.
+- **Status:** Complete. Precision 1.00, Recall 1.00 on the lab.
 
 ### ❌ Phase 7 — Statistics (not started)
 - Median scan time per rule (RQ3).
@@ -224,7 +227,7 @@ unit that can be tested before moving on.
 - Bootstrap confidence intervals.
 - Per-context breakdown.
 
-### ❌ Phase 8 — Demo + README (in progress — this file)
+### 🟡 Phase 8 — Demo + README (this file)
 - One-command `make eval` (or PowerShell equivalent).
 - Manual demo script.
 
@@ -273,27 +276,39 @@ python oracle\referee.py "http://127.0.0.1:5000/page/case008"
 
 ---
 
-## Results So Far
+## Results
 
-On the 49-case lab (each case scored as **one** unit — a case counts as flagged
-if any of its payloads triggers the rule):
+On the 49-case lab, each case scored as **one** unit — a case counts as flagged
+if any of its payloads triggers the rule:
 
-| Rule | True Positives | False Positives | True Negatives | False Negatives | Precision | Recall | F1 |
+| Rule | TP | FP | TN | FN | Precision | Recall | F1 |
 |---|---|---|---|---|---|---|---|
 | A0 (token reappears) | 15 | 34 | 0 | 0 | 0.31 | 1.00 | 0.47 |
 | A1 (payload verbatim) | 15 | 20 | 14 | 0 | 0.43 | 1.00 | 0.60 |
-| B (landing spot) | 15 | 21 | 13 | 0 | 0.42 | 1.00 | 0.59 |
-| **C (B + CSP)** | *pending Phase 6 test* | | | | | | |
+| B (landing spot) | 15 | 10 | 24 | 0 | 0.60 | 1.00 | 0.75 |
+| **C (B + CSP)** | **15** | **0** | **34** | **0** | **1.00** | **1.00** | **1.00** |
 
-**Interpretation:** A0's high false-positive count comes from the fact that
-HTML escaping leaves the token visible (e.g. `&lt;script&gt;...`) — A0 sees
-the token and wrongly yells "vulnerable". A1 fixes some of that, but still
-flags cases where the payload survived verbatim *and* where CSP would
-block execution. Rule C is designed to eliminate the CSP-caused FPs.
+**Interpretation:**
 
-**The remaining FPs after Rule C are the interesting result.** They represent
-JS-syntax edge cases (nested `<script>` tags, comment breakouts) that a
-rule-based checker cannot fully resolve without a JavaScript parser.
+- **A0 → A1**: Precision improves by +12 points. Requiring the *full payload
+  verbatim* filters out cases where escaping left the token visible but not
+  the dangerous characters.
+- **A1 → B**: Precision improves by +17 points. The landing-spot check
+  rejects payloads that landed in non-executable positions or that broke
+  JS syntax (nested `<script>` tags, stray backslashes).
+- **B → C**: Precision improves by +40 points, reaching **1.00**.
+  Rule B still had 10 false positives — all cases where the payload landed
+  in a genuinely executable position, but the site's CSP header told the
+  browser to refuse it. **Rule B cannot address these by design** (it has
+  no knowledge of CSP). Rule C closes the gap entirely.
+
+**Research question answers:**
+
+| RQ | Question | Answer |
+|---|---|---|
+| RQ1 | Does the landing-spot check help? | **Yes, +17 precision points over A1**, with recall unchanged at 1.00. |
+| RQ2 | Does the CSP check help? | **Yes, +40 additional precision points over B**, eliminating every remaining false positive. |
+| RQ3 | What's the scan-time cost? | *Pending — Phase 7.* |
 
 ---
 
@@ -303,7 +318,7 @@ rule-based checker cannot fully resolve without a JavaScript parser.
 |---|---|---|
 | Language | Python 3.11+ | Standard for security tooling; fast to write, easy to read. |
 | HTTP | `requests` | Simple, well-tested. |
-| HTML parsing | `BeautifulSoup4` + `html5lib` | `html5lib` follows the HTML5 parsing spec, so it sees markup the way a browser does. |
+| HTML parsing | `BeautifulSoup4` + `html5lib` | `html5lib` follows the HTML5 parsing spec, so it sees markup the way a browser does. Raw-regex fallback for nested `<script>` detection. |
 | Browser automation | Playwright (headless Chromium) | Used **only** as an offline referee, never inside the scanner. |
 | Test lab | Flask | Lightweight, easy to script 49 variations. |
 | Storage | SQLite | Single-file, no server, perfect for offline analysis. |
@@ -317,17 +332,17 @@ rule-based checker cannot fully resolve without a JavaScript parser.
 
 The scanner deliberately stays simple so results are explainable. As a result:
 
-1. **No JavaScript parser.** Rule B uses a small custom lexer that handles
-   basic string and comment cases, but cannot fully parse template literals,
-   regex literals, or minified code.
-2. **Nested `<script>` tags.** A `</script>` inside a JS string terminates
-   the outer `<script>` element in HTML5. Rule B does not detect this.
-3. **Chromium only.** The oracle only reports what Chromium does. Firefox and
-   Safari may differ on edge cases.
+1. **No full JavaScript parser.** Rule B uses a small custom lexer that
+   handles basic string, comment, and stray-backslash cases, but cannot
+   fully parse template literals, regex literals, or minified code.
+2. **Raw-`<` heuristic.** Rule B treats any unescaped `<` before the marker
+   as a syntax error. In real-world JS, `<` is a legitimate operator
+   (`if (a < b)`). On real pages this could produce false negatives.
+3. **Chromium only.** The oracle only reports what Chromium does. Firefox
+   and Safari may differ on edge cases.
 4. **CSP nonce reuse.** Rule C treats a nonce as protective. If a site reuses
    the same nonce across requests (a common bug), the CSP is effectively
-   useless but our rule would still mark it mitigated. Detecting nonce reuse
-   is future work.
+   useless but our rule would still mark it mitigated.
 5. **Meta-tag CSP.** Rule C only reads the response header. CSP can also be
    set via `<meta http-equiv="Content-Security-Policy">`, which has different
    semantics (it can't cover some directives). Lower confidence; untested.
@@ -365,6 +380,14 @@ The scanner deliberately stays simple so results are explainable. As a result:
 
 ---
 
+## Intended Use
+
+This tool is intended for **authorized security testing and academic research only**.
+Do not use it against systems you do not own or do not have explicit written
+permission to test. The authors accept no liability for misuse.
+
+---
+
 ## License
 
-Academic project. Not intended for production use against systems you do not own.
+MIT License. See `LICENSE` for details.
