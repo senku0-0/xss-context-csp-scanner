@@ -6,6 +6,12 @@ from .base import Rule, Verdict
 MARKER = "window.__xss_fired=1"
 HTML_ENTITY = ("&lt;", "&gt;", "&quot;", "&#x27;", "&#39;")
 
+# Non-greedy so it stops at the first </script>, matching browser behavior.
+SCRIPT_BLOCK_RE = re.compile(
+    r"<script\b[^>]*>(.*?)</script>",
+    re.DOTALL | re.IGNORECASE,
+)
+
 
 class RuleB(Rule):
     name = "B_landing_spot"
@@ -19,21 +25,25 @@ class RuleB(Rule):
         if MARKER not in body:
             return Verdict(False, "marker not present in response")
 
-        soup = BeautifulSoup(body, "html5lib")
-
-        # 1. Marker inside <script> body — must not be inside a JS string
-        for script in soup.find_all("script"):
-            content = script.string or "".join(script.strings)
-            if not content or MARKER not in content:
+        # 1. Scan RAW HTML for <script> blocks (BeautifulSoup hides nested tags)
+        for m in SCRIPT_BLOCK_RE.finditer(body):
+            content = m.group(1)
+            if MARKER not in content:
                 continue
             if any(e in content for e in HTML_ENTITY):
                 continue
             pos = content.find(MARKER)
             if self._in_js_string(content, pos):
                 continue
+            # Any unescaped '<' before the marker means HTML was injected
+            # into the JS -> the block is syntactically broken and the
+            # browser will refuse to run it.
+            if "<" in content[:pos]:
+                continue
             return Verdict(True, "marker landed in executable <script> body")
 
-        # 2. Marker inside an on* event handler
+        # 2. Marker in an on* handler (BeautifulSoup handles attributes fine)
+        soup = BeautifulSoup(body, "html5lib")
         for tag in soup.find_all(True):
             for attr, val in (tag.attrs or {}).items():
                 if isinstance(val, list):
@@ -42,14 +52,10 @@ class RuleB(Rule):
                     continue
                 if not attr.lower().startswith("on"):
                     continue
-                if MARKER not in val:
-                    continue
-                if any(e in val for e in HTML_ENTITY):
-                    continue
-                return Verdict(True, f"marker landed in {attr} attribute")
+                if MARKER in val and not any(e in val for e in HTML_ENTITY):
+                    return Verdict(True, f"marker landed in {attr} attribute")
 
-        # 3. Marker inside a javascript: URL — scan the RAW body so that
-        #    BeautifulSoup does not silently unescape entities.
+        # 3. Marker in a javascript: URL - scan RAW HTML
         for m in re.finditer(r"javascript:([^\"'<>\s]*)", body):
             url_body = m.group(1)
             if MARKER not in url_body:
@@ -62,13 +68,18 @@ class RuleB(Rule):
 
     @staticmethod
     def _in_js_string(js, pos):
-        """True if the character at `pos` is inside a JS string literal."""
+        """True if the char at `pos` is inside a JS string OR if the JS is
+        syntactically broken before `pos` (e.g. a stray backslash or quote)."""
         in_single = in_double = False
         i = 0
         while i < pos:
             c = js[i]
-            if c == "\\":       # skip escaped character
-                i += 2
+            if c == "\\":
+                # Backslash outside any string is a JS syntax error.
+                # Treat as "don't trust this" so we skip it.
+                if not in_single and not in_double:
+                    return True
+                i += 2  # skip escaped character
                 continue
             if not in_double and c == "'":
                 in_single = not in_single
