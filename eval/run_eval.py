@@ -2,14 +2,14 @@ import sqlite3
 import csv
 import os
 import sys
-from scanner.rules.c_csp import RuleC
 
-# This MUST come before importing anything from 'scanner'
+# This MUST come before any 'from scanner...' or 'from eval...' import.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scanner.rules.a0 import RuleA0
 from scanner.rules.a1 import RuleA1
 from scanner.rules.b_context import RuleB
+from scanner.rules.c_csp import RuleC
 
 
 def load_ground_truth():

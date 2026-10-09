@@ -14,4 +14,5 @@ Thumbs.db
 test-results/
 
 # Captures database (regenerable via scanner/run_capture.py)
-captures.db
+/captures.db
+/captures_benchmark.db
