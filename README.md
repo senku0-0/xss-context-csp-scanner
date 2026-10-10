@@ -99,18 +99,6 @@ python run_pipeline.py --skip-capture
 
 Stages 8-9 run only with `--with-benchmark`.
 
-### Why a Python Orchestrator (Not DVC)
-
-We chose a plain Python script over DVC or Make for three reasons:
-
-1. **Flask server lifecycle.** The capture stage needs a live HTTP server
-   (`lab/app.py`). A Python orchestrator can start it, wait for it to be ready,
-   run the stages, and stop it cleanly — DVC and Make cannot.
-2. **Zero dependencies.** `run_pipeline.py` uses only the Python standard library.
-   DVC adds ~200 MB to the virtual environment for a pipeline this size.
-3. **Cross-platform.** Same command on Windows, macOS, and Linux. A Makefile
-   would require additional tooling on Windows.
-
 ---
 
 ## Manual Step-by-Step Run
